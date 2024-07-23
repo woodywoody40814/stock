@@ -1,0 +1,700 @@
+<html><head><base href=""><meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台股智能分析平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --bg-color: #ecf0f1;
+            --text-color: #34495e;
+            --box-bg: #ffffff;
+            --hover-color: #2980b9;
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        header {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        main {
+            flex: 1;
+            display: flex;
+            padding: 1rem;
+        }
+        .sidebar {
+            width: 250px;
+            background-color: var(--box-bg);
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-right: 1rem;
+        }
+        .content {
+            flex: 1;
+            background-color: var(--box-bg);
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+        #stockForm {
+            display: flex;
+            margin-bottom: 1rem;
+        }
+        #stockInput {
+            flex-grow: 1;
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 2px solid var(--primary-color);
+            border-radius: 5px 0 0 5px;
+        }
+        button, select {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover, select:hover {
+            background-color: var(--hover-color);
+        }
+        .watchlist-item {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .watchlist-item:hover {
+            background-color: var(--hover-color);
+        }
+        .tab-container {
+            display: flex;
+            border-bottom: 2px solid var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        .tab {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .tab.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #chartContainer {
+            height: 400px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .loading {
+            text-align: center;
+            font-size: 1.2rem;
+            color: var(--secondary-color);
+        }
+        .mode-switch {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .mode-switch:hover {
+            background-color: var(--hover-color);
+        }
+        .dark-mode {
+            --bg-color: #1a1a2e;
+            --text-color: #e0e0e0;
+            --box-bg: #16213e;
+            --primary-color: #4d80e4;
+            --secondary-color: #0f3460;
+            --hover-color: #5a8dee;
+        }
+        .dark-mode .sidebar, .dark-mode .content {
+            box-shadow: 0 0 10px rgba(255,255,255,0.1);
+        }
+        .dark-mode th {
+            background-color: #0f3460;
+        }
+        .dark-mode td {
+            border-bottom: 1px solid #2a4494;
+        }
+        .chart-controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        .chart-controls select {
+            width: 48%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>台股智能分析平台</h1>
+        <button class="mode-switch" onclick="toggleDarkMode()">切換深色模式</button>
+    </header>
+    <main>
+        <aside class="sidebar">
+            <h2>股票查詢</h2>
+            <form id="stockForm" method="GET" action="/query">
+                <input type="text" id="stockInput" name="stockInput" placeholder="請輸入股票代碼或名稱" required>
+                <button type="submit">查詢</button>
+            </form>
+            <h3>關注清單</h3>
+            <div class="watchlist">
+                <div class="watchlist-item" onclick="queryStock('2330')">台積電 (2330)</div>
+                <div class="watchlist-item" onclick="queryStock('2317')">鴻海 (2317)</div>
+                <div class="watchlist-item" onclick="queryStock('2412')">中華電 (2412)</div>
+            </div>
+        </aside>
+        <section class="content">
+            <div id="loading" class="loading" style="display: none;">正在查詢股票資訊...</div>
+            <div id="result"></div>
+            <div class="tab-container">
+                <div class="tab active" onclick="switchTab('chart', this)">走勢圖</div>
+                <div class="tab" onclick="switchTab('technical', this)">技術分析</div>
+                <div class="tab" onclick="switchTab('company', this)">公司資訊</div>
+            </div>
+            <div id="chartTab" class="tab-content active">
+                <div class="chart-controls">
+                    <select id="chartType" onchange="updateChart()">
+                        <option value="line">線圖</option>
+                        <option value="candlestick">K線圖</option>
+                    </select>
+                    <select id="timeFrame" onchange="updateChart()">
+                        <option value="daily">日線圖</option>
+                        <option value="weekly">週線圖</option>
+                        <option value="monthly">月線圖</option>
+                    </select>
+                </div>
+                <div id="chartContainer">
+                    <canvas id="stockChart"></canvas>
+                </div>
+            </div>
+            <div id="technicalTab" class="tab-content">
+                <select id="indicatorType" onchange="updateIndicator()">
+                    <option value="sma">移動平均線 (SMA)</option>
+                    <option value="rsi">相對強弱指標 (RSI)</option>
+                    <option value="macd">MACD</option>
+                </select>
+                <div id="technicalAnalysis"></div>
+            </div>
+            <div id="companyTab" class="tab-content">
+                <div id="companyInfo"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        let chart;
+        let currentStockData;
+        let currentStockCode;
+        let isDarkMode = false;
+
+        const companyData = {
+            '2330': {
+                name: '台灣積體電路製造股份有限公司',
+                industry: '半導體業',
+                establishedDate: '1987年2月21日',
+                listingDate: '1994年9月5日',
+                capital: '2,597億元',
+                website: 'https://www.tsmc.com',
+                businessScope: '專業積體電路製造服務',
+                chairman: '劉德音',
+                president: '魏哲家',
+                employees: '約65,000人',
+                majorProducts: '7奈米、5奈米、3奈米製程晶片',
+                recentNews: '持續擴大先進製程產能，積極布局2奈米技術'
+            },
+            '2317': {
+                name: '鴻海精密工業股份有限公司',
+                industry: '電子零組件業',
+                establishedDate: '1974年2月20日',
+                listingDate: '1991年6月18日',
+                capital: '1,387億元',
+                website: 'https://www.foxconn.com',
+                businessScope: '電子產品代工製造',
+                chairman: '劉揚偉',
+                president: '劉揚偉',
+                employees: '超過100萬人',
+                majorProducts: '智慧型手機、電腦、伺服器、電動車零組件',
+                recentNews: '積極布局電動車、半導體、機器人等新興領域'
+            },
+            '2412': {
+                name: '中華電信股份有限公司',
+                industry: '電信業',
+                establishedDate: '1996年6月15日',
+                listingDate: '2000年10月27日',
+                capital: '770億元',
+                website: 'https://www.cht.com.tw',
+                businessScope: '固網、行動通訊、寬頻上網及數據通訊服務',
+                chairman: '謝繼茂',
+                president: '郭水義',
+                employees: '約22,000人',
+                majorProducts: '5G服務、光纖寬頻、MOD影音服務',
+                recentNews: '持續擴大5G網路覆蓋，發展智慧城市解決方案'
+            }
+        };
+        
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode');
+            updateChart();
+        }
+
+        function queryStock(stockInput) {
+            document.getElementById('stockInput').value = stockInput;
+            document.getElementById('stockForm').dispatchEvent(new Event('submit'));
+        }
+
+        document.getElementById('stockForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const stockInput = document.getElementById('stockInput').value;
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            // 模擬股票代碼和名稱的對應關係
+            const stockMap = {
+                '台積電': '2330',
+                '鴻海': '2317',
+                '中華電': '2412'
+            };
+
+            // 判斷輸入是代碼還是名稱
+            const stockCode = stockMap[stockInput] || stockInput;
+            currentStockCode = stockCode;
+
+            const url = `https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=${getFormattedDate()}&stockNo=${stockCode}&response=json`;
+
+            axios.get(url)
+                .then(response => {
+                    loading.style.display = 'none';
+                    result.style.display = 'block';
+
+                    const data = response.data;
+                    if (data.stat === 'OK' && data.data.length > 0) {
+                        currentStockData = data.data;
+                        const latestData = data.data[data.data.length - 1];
+                        const [date, volume, turnover, open, high, low, close, change, transactions] = latestData;
+
+                        result.innerHTML = `
+                            <h2>${stockCode} - ${data.title.split(' ')[2]}</h2>
+                            <table>
+                                <tr><th>日期</th><td>${date}</td></tr>
+                                <tr><th>收盤價</th><td>${close}</td></tr>
+                                <tr><th>漲跌</th><td class="${parseFloat(change) >= 0 ? 'positive' : 'negative'}">${change}</td></tr>
+                                <tr><th>開盤價</th><td>${open}</td></tr>
+                                <tr><th>最高價</th><td>${high}</td></tr>
+                                <tr><th>最低價</th><td>${low}</td></tr>
+                                <tr><th>成交股數</th><td>${formatNumber(volume)}</td></tr>
+                                <tr><th>成交金額</th><td>${formatNumber(turnover)}</td></tr>
+                                <tr><th>成交筆數</th><td>${formatNumber(transactions)}</td></tr>
+                            </table>
+                        `;
+
+                        updateChart();
+                        updateIndicator();
+                        displayCompanyInfo(stockCode);
+                    } else {
+                        result.innerHTML = '<p>找不到該股票的資訊，請確認股票代碼或名稱是否正確。</p>';
+                    }
+                })
+                .catch(error => {
+                    loading.style.display = 'none';
+                    result.style.display = 'block';
+                    result.innerHTML = '<p>查詢失敗，請稍後再試。</p>';
+                    console.error('Error:', error);
+                });
+        });
+
+        function getFormattedDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}${month}${day}`;
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('zh-TW').format(num);
+        }
+
+        function updateChart() {
+            if (!currentStockData) return;
+
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            const chartType = document.getElementById('chartType').value;
+            const timeFrame = document.getElementById('timeFrame').value;
+            
+            if (chart) {
+                chart.destroy();
+            }
+
+            let data;
+            if (timeFrame === 'daily') {
+                data = currentStockData;
+            } else if (timeFrame === 'weekly') {
+                data = aggregateData(currentStockData, 7);
+            } else if (timeFrame === 'monthly') {
+                data = aggregateData(currentStockData, 30);
+            }
+
+            const dates = data.map(item => new Date(item[0].replace(/(\d+)\/(\d+)\/(\d+)/, '$1-$2-$3')));
+            const prices = data.map(item => parseFloat(item[6])); // 收盤價
+
+            let chartConfig;
+            if (chartType === 'line') {
+                chartConfig = {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: '收盤價',
+                            data: prices,
+                            borderColor: isDarkMode ? '#5a8dee' : '#3498db',
+                            backgroundColor: isDarkMode ? 'rgba(90, 141, 238, 0.1)' : 'rgba(52, 152, 219, 0.1)',
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointBackgroundColor: isDarkMode ? '#5a8dee' : '#3498db',
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: '股價走勢圖',
+                                font: {
+                                    size: 18,
+                                    weight: 'bold'
+                                },
+                                color: isDarkMode ? '#e0e0e0' : '#34495e'
+                            },
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: timeFrame === 'daily' ? 'day' : timeFrame === 'weekly' ? 'week' : 'month'
+                                },
+                                ticks: {
+                                    maxTicksLimit: 10,
+                                    color: isDarkMode ? '#e0e0e0' : '#34495e'
+                                },
+                                grid: {
+                                    color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: '價格',
+                                    color: isDarkMode ? '#e0e0e0' : '#34495e'
+                                },
+                                ticks: {
+                                    callback: function(value, index, values) {
+                                        return '$' + value.toFixed(2);
+                                    },
+                                    color: isDarkMode ? '#e0e0e0' : '#34495e'
+                                },
+                                grid: {
+                                    color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeOutQuart'
+                        }
+                    }
+                };
+            } else if (chartType === 'candlestick') {
+                const opens = data.map(item => parseFloat(item[3]));
+                const highs = data.map(item => parseFloat(item[4]));
+                const lows = data.map(item => parseFloat(item[5]));
+                const closes = data.map(item => parseFloat(item[6]));
+
+                chartConfig = {
+                    type: 'candlestick',
+                    data: {
+                        datasets: [{
+                            label: 'OHLC',
+                            data: dates.map((date, index) => ({
+                                x: date,
+                                o: opens[index],
+                                h: highs[index],
+                                l: lows[index],
+                                c: closes[index]
+                            }))
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'K線圖',
+                                font: {
+                                    size: 18,
+                                    weight: 'bold'
+                                },
+                                color: isDarkMode ? '#e0e0e0' : '#34495e'
+                            },
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: timeFrame === 'daily' ? 'day' : timeFrame === 'weekly' ? 'week' : 'month'
+                                },
+                                ticks: {
+                                    maxTicksLimit: 10,
+                                    color: isDarkMode ? '#e0e0e0' : '#34495e'
+                                },
+                                grid: {
+                                    color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: '價格',
+                                    color: isDarkMode ? '#e0e0e0' : '#34495e'
+                                },
+                                ticks: {
+                                    callback: function(value, index, values) {
+                                        return '$' + value.toFixed(2);
+                                    },
+                                    color: isDarkMode ? '#e0e0e0' : '#34495e'
+                                },
+                                grid: {
+                                    color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
+                                }
+                            }
+                        }
+                    }
+                };
+            }
+
+            chart = new Chart(ctx, chartConfig);
+        }
+
+        function aggregateData(data, days) {
+            const aggregated = [];
+            for (let i = 0; i < data.length; i += days) {
+                const chunk = data.slice(i, i + days);
+                const date = chunk[0][0];
+                const open = parseFloat(chunk[0][3]);
+                const high = Math.max(...chunk.map(item => parseFloat(item[4])));
+                const low = Math.min(...chunk.map(item => parseFloat(item[5])));
+                const close = parseFloat(chunk[chunk.length - 1][6]);
+                aggregated.push([date, '', '', open.toString(), high.toString(), low.toString(), close.toString(), '', '']);
+            }
+            return aggregated;
+        }
+
+        function updateIndicator() {
+            if (!currentStockData) return;
+
+            const indicatorType = document.getElementById('indicatorType').value;
+            const prices = currentStockData.map(item => parseFloat(item[6])); // 收盤價
+
+            let indicatorValue, interpretation;
+            switch (indicatorType) {
+                case 'sma':
+                    const sma5 = calculateSMA(prices, 5);
+                    const sma20 = calculateSMA(prices, 20);
+                    indicatorValue = `
+                        <p>5日均線：${sma5.toFixed(2)}</p>
+                        <p>20日均線：${sma20.toFixed(2)}</p>
+                    `;
+                    interpretation = sma5 > sma20 
+                        ? '短期均線突破長期均線，可能呈現上升趨勢。' 
+                        : '短期均線跌破長期均線，可能呈現下降趨勢。';
+                    break;
+                case 'rsi':
+                    const rsi = calculateRSI(prices);
+                    indicatorValue = `<p>相對強弱指標 (RSI)：${rsi.toFixed(2)}</p>`;
+                    if (rsi > 70) {
+                        interpretation = 'RSI高於70，可能處於超買狀態，股價可能會回檔。';
+                    } else if (rsi < 30) {
+                        interpretation = 'RSI低於30，可能處於超賣狀態，股價可能會反彈。';
+                    } else {
+                        interpretation = 'RSI處於中性區間，無明顯買賣訊號。';
+                    }
+                    break;
+                case 'macd':
+                    const macd = calculateMACD(prices);
+                    indicatorValue = `
+                        <p>MACD：${macd.macd.toFixed(2)}</p>
+                        <p>Signal：${macd.signal.toFixed(2)}</p>
+                        <p>Histogram：${macd.histogram.toFixed(2)}</p>
+                    `;
+                    interpretation = macd.histogram > 0 
+                        ? 'MACD柱狀圖為正，可能呈現上升趨勢。' 
+                        : 'MACD柱狀圖為負，可能呈現下降趨勢。';
+                    break;
+            }
+
+            document.getElementById('technicalAnalysis').innerHTML = `
+                <div class="indicator-value">${indicatorValue}</div>
+                <div class="indicator-interpretation"><strong>解讀：</strong>${interpretation}</div>
+            `;
+        }
+
+        function calculateSMA(data, period) {
+            return data.slice(-period).reduce((sum, price) => sum + price, 0) / period;
+        }
+
+        function calculateRSI(prices, period = 14) {
+            const changes = prices.slice(1).map((price, index) => price - prices[index]);
+            const gains = changes.map(change => change > 0 ? change : 0);
+            const losses = changes.map(change => change < 0 ? -change : 0);
+            
+            const avgGain = gains.slice(-period).reduce((sum, gain) => sum + gain, 0) / period;
+            const avgLoss = losses.slice(-period).reduce((sum, loss) => sum + loss, 0) / period;
+            
+            const rs = avgGain / avgLoss;
+            return 100 - (100 / (1 + rs));
+        }
+
+        function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+            const ema12 = calculateEMA(prices, fastPeriod);
+            const ema26 = calculateEMA(prices, slowPeriod);
+            const macdLine = ema12 - ema26;
+            const signalLine = calculateEMA([macdLine], signalPeriod);
+            const histogram = macdLine - signalLine;
+
+            return {
+                macd: macdLine,
+                signal: signalLine,
+                histogram: histogram
+            };
+        }
+
+        function calculateEMA(prices, period) {
+            const k = 2 / (period + 1);
+            let ema = prices[0];
+            for (let i = 1; i < prices.length; i++) {
+                ema = (prices[i] * k) + (ema * (1 - k));
+            }
+            return ema;
+        }
+
+        function displayCompanyInfo(stockCode) {
+            const info = companyData[stockCode] || { 
+                name: '未知', 
+                industry: '未知', 
+                establishedDate: '未知', 
+                listingDate: '未知', 
+                capital: '未知',
+                website: '未知',
+                businessScope: '未知',
+                chairman: '未知',
+                president: '未知',
+                employees: '未知',
+                majorProducts: '未知',
+                recentNews: '無最新資訊'
+            };
+
+            const companyInfo = document.getElementById('companyInfo');
+            companyInfo.innerHTML = `
+                <table>
+                    <tr><th>公司名稱</th><td>${info.name}</td></tr>
+                    <tr><th>產業別</th><td>${info.industry}</td></tr>
+                    <tr><th>成立日期</th><td>${info.establishedDate}</td></tr>
+                    <tr><th>上市日期</th><td>${info.listingDate}</td></tr>
+                    <tr><th>實收資本額</th><td>${info.capital}</td></tr>
+                    <tr><th>公司網站</th><td><a href="${info.website}" target="_blank">${info.website}</a></td></tr>
+                    <tr><th>主要業務</th><td>${info.businessScope}</td></tr>
+                    <tr><th>董事長</th><td>${info.chairman}</td></tr>
+                    <tr><th>總經理</th><td>${info.president}</td></tr>
+                    <tr><th>員工人數</th><td>${info.employees}</td></tr>
+                    <tr><th>主要產品</th><td>${info.majorProducts}</td></tr>
+                    <tr><th>最新動態</th><td>${info.recentNews}</td></tr>
+                </table>
+            `;
+        }
+
+        function switchTab(tabId, element) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            element.classList.add('active');
+            document.getElementById(tabId + 'Tab').classList.add('active');
+
+            if (tabId === 'chart') {
+                updateChart();
+            } else if (tabId === 'technical') {
+                updateIndicator();
+            } else if (tabId === 'company') {
+                displayCompanyInfo(currentStockCode);
+            }
+        }
+
+        // 初始化頁面
+        document.addEventListener('DOMContentLoaded', function() {
+            queryStock('2330'); // 預設查詢台積電
+        });
+    </script>
+</body>
+</html>
